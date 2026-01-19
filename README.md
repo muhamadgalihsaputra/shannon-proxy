@@ -130,7 +130,7 @@ The proxy decides where requests actually go. Shannon just talks to `localhost:8
 ### Prerequisites
 
 - Docker and Docker Compose
-- A local LLM proxy (Claude CLI Proxy, LiteLLM, OpenRouter, etc.)
+- A local LLM proxy ([CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), LiteLLM, OpenRouter, etc.)
 - A model that your proxy supports
 
 ### 1. Clone and Configure
@@ -206,7 +206,7 @@ docker compose up -d
 
 | Proxy Type | `ANTHROPIC_BASE_URL` |
 |------------|---------------------|
-| Claude CLI Proxy (local) | `http://host.docker.internal:8317` |
+| CLIProxyAPI (local) | `http://host.docker.internal:8317` |
 | LiteLLM (local) | `http://host.docker.internal:4000` |
 | OpenRouter | `https://openrouter.ai/api/v1` |
 | Together AI | `https://api.together.xyz/v1` |
@@ -217,13 +217,17 @@ docker compose up -d
 
 ## Tested Model Configurations
 
-We've tested Shannon with the following proxy/model combinations:
+We've tested Shannon with [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) using the following model combinations:
 
 | Proxy | Model ID | Status | Notes |
 |-------|----------|--------|-------|
-| Claude CLI Proxy | `gpt-5.2-codex` | ✅ Works | Recommended |
-| Claude CLI Proxy | `gemini-2.5-pro` | ✅ Works | Good for complex analysis |
-| Claude CLI Proxy | `gemini-2.5-flash` | ✅ Works | Fast, cost-effective |
+| CLIProxyAPI | `gemini-3-flash-preview` | ✅ Works | Recommended, fast |
+| CLIProxyAPI | `gemini-3-pro-preview` | ✅ Works | Best for complex analysis |
+| CLIProxyAPI | `gpt-5.2-codex` | ✅ Works | High capability, may hit rate limits |
+| CLIProxyAPI | `gpt-5.1-codex` | ✅ Works | Good balance of speed/quality |
+| CLIProxyAPI | `gemini-2.5-pro` | ✅ Works | Solid performance |
+| CLIProxyAPI | `gemini-2.5-flash` | ✅ Works | Fast, cost-effective |
+| CLIProxyAPI | `qwen3-coder-flash` | ✅ Works | Good for code analysis |
 | LiteLLM | `anthropic/claude-3-5-sonnet` | ✅ Works | Native Anthropic routing |
 | OpenRouter | `anthropic/claude-3.5-sonnet` | ✅ Works | Multi-provider fallback |
 | Ollama | `llama3.1:70b` | ⚠️ Partial | Tool use may be limited |
@@ -431,7 +435,7 @@ A: This is a philosophical divergence, not a bug fix. The upstream project may h
 ## Credits
 
 - **Shannon**: Original project by [Keygraph, Inc.](https://keygraph.io/) — the foundation we built upon
-- **Claude CLI Proxy**: For making local LLM routing painless
+- **[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)**: For making local LLM routing painless with multi-provider support
 - **Every engineer** who's ever had to work around a hardcoded string in a dependency
 
 ---
