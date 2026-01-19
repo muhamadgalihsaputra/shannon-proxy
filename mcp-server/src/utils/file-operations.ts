@@ -25,15 +25,32 @@ export function saveDeliverableFile(targetDir: string, filename: string, content
   const deliverablesDir = join(targetDir, 'deliverables');
   const filepath = join(deliverablesDir, filename);
 
+  // Debug: Log permission context for troubleshooting Docker volume issues
+  console.log(`[save_deliverable] Saving to: ${filepath}`);
+  console.log(`[save_deliverable] Process UID: ${process.getuid?.() ?? 'N/A'}, GID: ${process.getgid?.() ?? 'N/A'}`);
+
   // Ensure deliverables directory exists
   try {
     mkdirSync(deliverablesDir, { recursive: true });
-  } catch {
-    // Directory might already exist, ignore
+    console.log(`[save_deliverable] Created/verified directory: ${deliverablesDir}`);
+  } catch (mkdirError) {
+    const errMsg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
+    // Only throw if it's not "already exists" error
+    if (!errMsg.includes('EEXIST')) {
+      console.error(`[save_deliverable] Failed to create directory: ${errMsg}`);
+      throw new Error(`Cannot create deliverables directory: ${errMsg}. Check Docker volume permissions.`);
+    }
   }
 
   // Write file (atomic write - single operation)
-  writeFileSync(filepath, content, 'utf8');
+  try {
+    writeFileSync(filepath, content, 'utf8');
+    console.log(`[save_deliverable] Successfully wrote ${content.length} bytes to ${filename}`);
+  } catch (writeError) {
+    const errMsg = writeError instanceof Error ? writeError.message : String(writeError);
+    console.error(`[save_deliverable] Failed to write file: ${errMsg}`);
+    throw new Error(`Cannot write deliverable file: ${errMsg}. Check Docker volume permissions (UID mismatch?).`);
+  }
 
   return filepath;
 }

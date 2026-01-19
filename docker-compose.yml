@@ -19,6 +19,10 @@ services:
       context: .
       args:
         - DEFAULT_MODEL=${CLAUDE_MODEL:-gpt-5.2-codex}
+    # Run as host user to fix volume permission issues
+    # The container's pentest user (UID 1001) cannot write to host-owned directories
+    # This maps to the host user's UID/GID for seamless file operations
+    user: "${UID:-1000}:${GID:-1000}"
     entrypoint: ["node", "dist/temporal/worker.js"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
