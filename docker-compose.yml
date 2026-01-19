@@ -15,13 +15,20 @@ services:
       start_period: 30s
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        - DEFAULT_MODEL=${CLAUDE_MODEL:-gpt-5.2-codex}
     entrypoint: ["node", "dist/temporal/worker.js"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-}
       - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-64000}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
     depends_on:
       temporal:
         condition: service_healthy

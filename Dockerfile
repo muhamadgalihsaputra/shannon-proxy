@@ -112,10 +112,24 @@ WORKDIR /app
 COPY package*.json ./
 COPY mcp-server/package*.json ./mcp-server/
 
+# Build argument for configurable model (defaults to gpt-5.2-codex for CLI proxy compatibility)
+ARG DEFAULT_MODEL=gpt-5.2-codex
+
 # Install Node.js dependencies (including devDependencies for TypeScript build)
 RUN npm ci && \
     cd mcp-server && npm ci && cd .. && \
     npm cache clean --force
+
+# Patch SDK to use configurable model instead of hardcoded claude-sonnet-4-5-20250929
+# This enables CLI proxy compatibility with OpenAI-compatible APIs
+RUN echo "Patching SDK to use model: ${DEFAULT_MODEL}" && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-sonnet-4-5-20250929/${DEFAULT_MODEL}/g" {} \; && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-sonnet-4-20250514/${DEFAULT_MODEL}/g" {} \; && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-opus-4-20250514/${DEFAULT_MODEL}/g" {} \; && \
+    echo "SDK patched successfully"
 
 # Copy application source code
 COPY . .

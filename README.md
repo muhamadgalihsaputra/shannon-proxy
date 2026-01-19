@@ -1,493 +1,457 @@
-> [!NOTE]
-> **[Shannon Lite achieves a 96.15% success rate on a hint-free, source-aware XBOW benchmark. &rarr;](https://github.com/KeygraphHQ/shannon/tree/main/xben-benchmark-results/README.md)**
+# Shannon CLI Proxy
 
+**_Penetration testing for those who refuse to be confined by API vendor lock-in_**
 
-<div align="center">
+[![Node](https://img.shields.io/badge/node-18%2B-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-experimental-orange.svg)](https://github.com/user/shannon-cli-proxy)
 
-<img src="./assets/shannon-screen.png" alt="Shannon Screen" width="100%">
-
-# Shannon is your fully autonomous AI pentester.
-
-Shannon’s job is simple: break your web app before anyone else does. <br />
-The Red Team to your vibe-coding Blue team. <br />
-Every Claude (coder) deserves their Shannon.
+> _"The best way to predict the future is to invent it."_
+> — Alan Kay
+>
+> _"The best way to avoid vendor lock-in is to route around it."_
+> — Every engineer who's been burned by API deprecations
 
 ---
 
-[Website](https://keygraph.io) • [Discord](https://discord.gg/KAqzSHHpRt)
+## What Is This, Exactly?
 
----
-</div>
+Shannon CLI Proxy is a fork of [Shannon](https://github.com/KeygraphHQ/shannon) that replaces hardcoded Anthropic model references with **configurable endpoints**. This allows Shannon to work with any OpenAI-compatible API proxy, local LLM servers, or multi-provider routers.
 
-## 🎯 What is Shannon?
+The original Shannon is a magnificent piece of AI-powered penetration testing orchestration. It is also, regrettably, married to `claude-sonnet-4-5-20250929` in ways that would make a divorce lawyer weep. The model string is embedded not just in the application code, but deep within the `@anthropic-ai/claude-agent-sdk` bundle itself—in minified JavaScript where variable names have been reduced to single characters and hope goes to die.
 
-Shannon is an AI pentester that delivers actual exploits, not just alerts.
+We fixed that.
 
-Shannon's goal is to break your web app before someone else does. It autonomously hunts for attack vectors in your code, then uses its built-in browser to execute real exploits, such as injection attacks, and auth bypass, to prove the vulnerability is actually exploitable.
+### The Core Problem
 
-**What Problem Does Shannon Solve?**
+```
+Shannon Application
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  src/ai/claude-executor.ts              │
+│  model: process.env.CLAUDE_MODEL ✓      │  ◄── You can configure this
+└─────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  @anthropic-ai/claude-agent-sdk         │
+│  model: 'claude-sonnet-4-5-20250929' ✗  │  ◄── But the SDK ignores you
+└─────────────────────────────────────────┘
+      │
+      ▼
+   Task Tool spawns sub-agents
+   with hardcoded model
+      │
+      ▼
+   Your proxy rejects unknown model
+      │
+      ▼
+   💀 Failure
+```
 
-Thanks to tools like Claude Code and Cursor, your team ships code non-stop. But your penetration test? That happens once a year. This creates a *massive* security gap. For the other 364 days, you could be unknowingly shipping vulnerabilities to production.
+When the main Claude agent uses the `Task` tool to spawn sub-agents, those sub-agents bypass your environment configuration entirely. They use whatever model string Anthropic baked into their SDK. If your proxy doesn't recognize `claude-sonnet-4-5-20250929`, you get cryptic errors about unsupported models.
 
-Shannon closes this gap by acting as your on-demand whitebox pentester. It doesn't just find potential issues. It executes real exploits, providing concrete proof of vulnerabilities. This lets you ship with confidence, knowing every build can be secured.
+### The Solution
 
-> [!NOTE]
-> **From Autonomous Pentesting to Automated Compliance**
->
-> Shannon is a core component of the **Keygraph Security and Compliance Platform**.
->
-> While Shannon automates the critical task of penetration testing for your application, our broader platform automates your entire compliance journey—from evidence collection to audit readiness. We're building the "Rippling for Cybersecurity," a single platform to manage your security posture and streamline compliance frameworks like SOC 2 and HIPAA.
->
-> ➡️ **[Learn more about the Keygraph Platform](https://keygraph.io)**
+We patch the SDK at Docker build time using `sed`. It's not elegant. It's not pretty. But it works, and it gives you freedom.
 
-## 🎬 See Shannon in Action
-
-**Real Results**: Shannon discovered 20+ critical vulnerabilities in OWASP Juice Shop, including complete auth bypass and database exfiltration. [See full report →](sample-reports/shannon-report-juice-shop.md)
-
-![Demo](assets/shannon-action.gif)
-
-## ✨ Features
-
-- **Fully Autonomous Operation**: Launch the pentest with a single command. The AI handles everything from advanced 2FA/TOTP logins (including sign in with Google) and browser navigation to the final report with zero intervention.
-- **Pentester-Grade Reports with Reproducible Exploits**: Delivers a final report focused on proven, exploitable findings, complete with copy-and-paste Proof-of-Concepts to eliminate false positives and provide actionable results.
-- **Critical OWASP Vulnerability Coverage**: Currently identifies and validates the following critical vulnerabilities: Injection, XSS, SSRF, and Broken Authentication/Authorization, with more types in development.
-- **Code-Aware Dynamic Testing**: Analyzes your source code to intelligently guide its attack strategy, then performs live, browser and command line based exploits on the running application to confirm real-world risk.
-- **Powered by Integrated Security Tools**: Enhances its discovery phase by leveraging leading reconnaissance and testing tools—including **Nmap, Subfinder, WhatWeb, and Schemathesis**—for deep analysis of the target environment.
-- **Parallel Processing for Faster Results**: Get your report faster. The system parallelizes the most time-intensive phases, running analysis and exploitation for all vulnerability types concurrently.
-
-## 📦 Product Line
-
-Shannon is available in two editions:
-
-| Edition | License | Best For |
-|---------|---------|----------|
-| **Shannon Lite** | AGPL-3.0 | Security teams, independent researchers, testing your own applications |
-| **Shannon Pro** | Commercial | Enterprises requiring advanced features, CI/CD integration, and dedicated support |
-
-> **This repository contains Shannon Lite,** which utilizes our core autonomous AI pentesting framework. **Shannon Pro** enhances this foundation with an advanced, LLM-powered data flow analysis engine (inspired by the [LLMDFA paper](https://arxiv.org/abs/2402.10754)) for enterprise-grade code analysis and deeper vulnerability detection.
-
-> [!IMPORTANT]
-> **White-box only.** Shannon Lite is designed for **white-box (source-available)** application security testing.  
-> It expects access to your application's source code and repository layout.
-
-[See feature comparison](./SHANNON-PRO.md)
-## 📑 Table of Contents
-
-- [What is Shannon?](#-what-is-shannon)
-- [See Shannon in Action](#-see-shannon-in-action)
-- [Features](#-features)
-- [Product Line](#-product-line)
-- [Setup & Usage Instructions](#-setup--usage-instructions)
-  - [Prerequisites](#prerequisites)
-  - [Quick Start](#quick-start)
-  - [Monitoring Progress](#monitoring-progress)
-  - [Stopping Shannon](#stopping-shannon)
-  - [Usage Examples](#usage-examples)
-  - [Configuration (Optional)](#configuration-optional)
-  - [Output and Results](#output-and-results)
-- [Sample Reports & Benchmarks](#-sample-reports--benchmarks)
-- [Architecture](#-architecture)
-- [Coverage and Roadmap](#-coverage-and-roadmap)
-- [Disclaimers](#-disclaimers)
-- [License](#-license)
-- [Community & Support](#-community--support)
-- [Get in Touch](#-get-in-touch)
+```
+Docker Build
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  npm ci (install dependencies)          │
+└─────────────────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────────────────┐
+│  sed -i "s/claude-sonnet-4-5-20250929/  │
+│          ${DEFAULT_MODEL}/g"            │
+│  node_modules/@anthropic-ai/*           │
+└─────────────────────────────────────────┘
+      │
+      ▼
+   All model references now point
+   to YOUR chosen model
+      │
+      ▼
+   🎉 Freedom
+```
 
 ---
 
-## 🚀 Setup & Usage Instructions
+## Philosophy (Or: Why We Built This)
+
+### The Tyranny of Hardcoded Strings
+
+Modern AI tooling has a curious pathology: it assumes you want to call *their* API, with *their* models, at *their* prices. This is understandable from a business perspective and insufferable from an engineering one.
+
+You might want to:
+
+- **Route through a local proxy** that provides caching, rate limiting, or cost tracking
+- **Use alternative providers** (Groq, Together, Nebius) that offer the same models cheaper
+- **Run local models** for sensitive codebases that shouldn't touch external APIs
+- **Load balance** across multiple providers for reliability
+- **Audit every request** passing through your infrastructure
+
+None of this is possible when the SDK has opinions about which endpoint to call.
+
+### The Proxy Pattern
+
+We advocate for a simple architectural pattern: **all LLM calls route through a local proxy**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Your Infrastructure                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐         ┌──────────────┐                  │
+│  │   Shannon    │────────▶│   Local      │                  │
+│  │   Worker     │         │   Proxy      │                  │
+│  └──────────────┘         └──────────────┘                  │
+│                                  │                           │
+│                    ┌─────────────┼─────────────┐            │
+│                    ▼             ▼             ▼            │
+│             ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│             │ Anthropic│  │  Groq    │  │  Local   │        │
+│             │   API    │  │   API    │  │  Ollama  │        │
+│             └──────────┘  └──────────┘  └──────────┘        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The proxy decides where requests actually go. Shannon just talks to `localhost:8317` and trusts that something intelligent will happen.
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- **Docker** - Container runtime ([Install Docker](https://docs.docker.com/get-docker/))
-- **Anthropic API key or Claude Code OAuth token** - Get from [Anthropic Console](https://console.anthropic.com)
+- Docker and Docker Compose
+- A local LLM proxy (Claude CLI Proxy, LiteLLM, OpenRouter, etc.)
+- A model that your proxy supports
 
-### Quick Start
+### 1. Clone and Configure
 
 ```bash
-# 1. Clone Shannon
-git clone https://github.com/KeygraphHQ/shannon.git
-cd shannon
+git clone https://github.com/user/shannon-cli-proxy.git
+cd shannon-cli-proxy
 
-# 2. Configure credentials (choose one method)
+# Copy and edit environment
+cp .env.example .env
+```
 
-# Option A: Export environment variables
-export ANTHROPIC_API_KEY="your-api-key"              # or CLAUDE_CODE_OAUTH_TOKEN
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000           # recommended
+Edit `.env`:
 
-# Option B: Create a .env file
-cat > .env << 'EOF'
-ANTHROPIC_API_KEY=your-api-key
+```bash
+# Your proxy endpoint (from Docker's perspective)
+ANTHROPIC_BASE_URL=http://host.docker.internal:8317
+
+# Your proxy's API key
+ANTHROPIC_API_KEY=sk-local-your-key
+
+# The model your proxy understands
+CLAUDE_MODEL=gpt-5.2-codex
+
+# Optional: increase output tokens
 CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000
-EOF
-
-# 3. Run a pentest
-./shannon start URL=https://your-app.com REPO=/path/to/your/repo
 ```
 
-Shannon will build the containers, start the workflow, and return a workflow ID. The pentest runs in the background.
-
-### Monitoring Progress
+### 2. Build the Patched Image
 
 ```bash
-# View real-time worker logs
-./shannon logs
-
-# Query a specific workflow's progress
-./shannon query ID=shannon-1234567890
-
-# Open the Temporal Web UI for detailed monitoring
-open http://localhost:8233
+# This patches the SDK during build
+docker compose build worker
 ```
 
-### Stopping Shannon
+The build process will:
+1. Install dependencies
+2. **Patch all hardcoded model strings** in `@anthropic-ai/*` packages
+3. Build TypeScript
+4. Create the final image
+
+### 3. Start Shannon
 
 ```bash
-# Stop all containers (preserves workflow data)
-./shannon stop
+# Start Temporal + Worker
+docker compose up -d
 
-# Full cleanup (removes all data)
-./shannon stop CLEAN=true
-```
-
-### Usage Examples
-
-```bash
-# Basic pentest
-./shannon start URL=https://example.com REPO=/path/to/repo
-
-# With a configuration file
-./shannon start URL=https://example.com REPO=/path/to/repo CONFIG=./configs/my-config.yaml
-
-# Custom output directory
-./shannon start URL=https://example.com REPO=/path/to/repo OUTPUT=./my-reports
-```
-
-### Prepare Your Repository
-
-Shannon is designed for **web application security testing** and expects all application code to be available in a single directory structure. This works well for:
-
-- **Monorepos** - Single repository containing all components
-- **Consolidated setups** - Multiple repositories organized in a shared folder
-
-**For monorepos:**
-
-```bash
-git clone https://github.com/your-org/your-monorepo.git /path/to/your-app
-```
-
-**For multi-repository applications** (e.g., separate frontend/backend):
-
-```bash
-mkdir /path/to/your-app
-cd /path/to/your-app
-git clone https://github.com/your-org/frontend.git
-git clone https://github.com/your-org/backend.git
-git clone https://github.com/your-org/api.git
-```
-
-### Platform-Specific Instructions
-
-**For Linux (Native Docker):**
-
-You may need to run commands with `sudo` depending on your Docker setup. If you encounter permission issues with output files, ensure your user has access to the Docker socket.
-
-**For macOS:**
-
-Works out of the box with Docker Desktop installed.
-
-**Testing Local Applications:**
-
-Docker containers cannot reach `localhost` on your host machine. Use `host.docker.internal` in place of `localhost`:
-
-```bash
-./shannon start URL=http://host.docker.internal:3000 REPO=/path/to/repo
-```
-
-### Configuration (Optional)
-
-While you can run without a config file, creating one enables authenticated testing and customized analysis.
-
-#### Create Configuration File
-
-Copy and modify the example configuration:
-
-```bash
-cp configs/example-config.yaml configs/my-app-config.yaml
-```
-
-#### Basic Configuration Structure
-
-```yaml
-authentication:
-  login_type: form
-  login_url: "https://your-app.com/login"
-  credentials:
-    username: "test@example.com"
-    password: "yourpassword"
-    totp_secret: "LB2E2RX7XFHSTGCK"  # Optional for 2FA
-
-  login_flow:
-    - "Type $username into the email field"
-    - "Type $password into the password field"
-    - "Click the 'Sign In' button"
-
-  success_condition:
-    type: url_contains
-    value: "/dashboard"
-
-rules:
-  avoid:
-    - description: "AI should avoid testing logout functionality"
-      type: path
-      url_path: "/logout"
-
-  focus:
-    - description: "AI should emphasize testing API endpoints"
-      type: path
-      url_path: "/api"
-```
-
-#### TOTP Setup for 2FA
-
-If your application uses two-factor authentication, simply add the TOTP secret to your config file. The AI will automatically generate the required codes during testing.
-
-### Output and Results
-
-All results are saved to `./audit-logs/{hostname}_{sessionId}/` by default. Use `--output <path>` to specify a custom directory.
-
-Output structure:
-```
-audit-logs/{hostname}_{sessionId}/
-├── session.json          # Metrics and session data
-├── agents/               # Per-agent execution logs
-├── prompts/              # Prompt snapshots for reproducibility
-└── deliverables/
-    └── comprehensive_security_assessment_report.md   # Final comprehensive security report
+# Run a pentest
+./shannon start URL=https://target.example.com REPO=/path/to/target/repo
 ```
 
 ---
 
-## 📊 Sample Reports
+## Configuration Reference
 
-> **Looking for quantitative benchmarks?** [See full benchmark methodology and results →](./xben-benchmark-results/README.md)
+### Environment Variables
 
-See Shannon's capabilities in action with penetration test results from industry-standard vulnerable applications:
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ANTHROPIC_BASE_URL` | Yes | - | Your proxy endpoint. Use `host.docker.internal` for localhost from Docker |
+| `ANTHROPIC_API_KEY` | Yes | - | API key your proxy expects |
+| `CLAUDE_MODEL` | Yes | `gpt-5.2-codex` | Model identifier your proxy understands |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | No | `64000` | Maximum output tokens per request |
+| `TEMPORAL_ADDRESS` | No | `temporal:7233` | Temporal server address |
 
-#### 🧃 **OWASP Juice Shop** • [GitHub](https://github.com/juice-shop/juice-shop)
+### Docker Compose Build Args
 
-*A notoriously insecure web application maintained by OWASP, designed to test a tool's ability to uncover a wide range of modern vulnerabilities.*
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `DEFAULT_MODEL` | Value of `CLAUDE_MODEL` | Model string to patch into SDK |
 
-**Performance**: Identified **over 20 high-impact vulnerabilities** across targeted OWASP categories in a single automated run.
+### Proxy Endpoint Examples
 
-**Key Accomplishments**:
-
-- **Achieved complete authentication bypass** and exfiltrated the entire user database via Injection attack
-- **Executed a full privilege escalation** by creating a new administrator account through a registration workflow bypass
-- **Identified and exploited systemic authorization flaws (IDOR)** to access and modify any user's private data and shopping cart
-- **Discovered a Server-Side Request Forgery (SSRF)** vulnerability, enabling internal network reconnaissance
-
-📄 **[View Complete Report →](sample-reports/shannon-report-juice-shop.md)**
-
----
-
-#### 🔗 **c{api}tal API** • [GitHub](https://github.com/Checkmarx/capital)
-
-*An intentionally vulnerable API from Checkmarx, designed to test a tool's ability to uncover the OWASP API Security Top 10.*
-
-**Performance**: Identified **nearly 15 critical and high-severity vulnerabilities**, leading to full application compromise.
-
-**Key Accomplishments**:
-
-- **Executed a root-level Injection attack** by bypassing a denylist via command chaining in a hidden debug endpoint
-- **Achieved complete authentication bypass** by discovering and targeting a legacy, unpatched v1 API endpoint
-- **Escalated a regular user to full administrator privileges** by exploiting a Mass Assignment vulnerability in the user profile update function
-- **Demonstrated high accuracy** by correctly confirming the application's robust XSS defenses, reporting zero false positives
-
-📄 **[View Complete Report →](sample-reports/shannon-report-capital-api.md)**
+| Proxy Type | `ANTHROPIC_BASE_URL` |
+|------------|---------------------|
+| Claude CLI Proxy (local) | `http://host.docker.internal:8317` |
+| LiteLLM (local) | `http://host.docker.internal:4000` |
+| OpenRouter | `https://openrouter.ai/api/v1` |
+| Together AI | `https://api.together.xyz/v1` |
+| Groq | `https://api.groq.com/openai/v1` |
+| Local Ollama | `http://host.docker.internal:11434/v1` |
 
 ---
 
-#### 🚗 **OWASP crAPI** • [GitHub](https://github.com/OWASP/crAPI)
+## Tested Model Configurations
 
-*A modern, intentionally vulnerable API from OWASP, designed to benchmark a tool's effectiveness against the OWASP API Security Top 10.*
+We've tested Shannon with the following proxy/model combinations:
 
-**Performance**: Identified **over 15 critical and high-severity vulnerabilities**, achieving full application compromise.
-
-**Key Accomplishments**:
-
-- **Bypassed authentication using multiple advanced JWT attacks**, including Algorithm Confusion, alg:none, and weak key (kid) injection
-- **Achieved full database compromise via Injection attacks**, exfiltrating user credentials from the PostgreSQL database
-- **Executed a critical Server-Side Request Forgery (SSRF) attack** that successfully forwarded internal authentication tokens to an external service
-- **Demonstrated high accuracy** by correctly identifying the application's robust XSS defenses, reporting zero false positives
-
-📄 **[View Complete Report →](sample-reports/shannon-report-crapi.md)**
+| Proxy | Model ID | Status | Notes |
+|-------|----------|--------|-------|
+| Claude CLI Proxy | `gpt-5.2-codex` | ✅ Works | Recommended |
+| Claude CLI Proxy | `gemini-2.5-pro` | ✅ Works | Good for complex analysis |
+| Claude CLI Proxy | `gemini-2.5-flash` | ✅ Works | Fast, cost-effective |
+| LiteLLM | `anthropic/claude-3-5-sonnet` | ✅ Works | Native Anthropic routing |
+| OpenRouter | `anthropic/claude-3.5-sonnet` | ✅ Works | Multi-provider fallback |
+| Ollama | `llama3.1:70b` | ⚠️ Partial | Tool use may be limited |
 
 ---
 
-*These results demonstrate Shannon's ability to move beyond simple scanning, performing deep contextual exploitation with minimal false positives and actionable proof-of-concepts.*
+## How the Patching Works
 
----
+### The Dockerfile Modification
 
-## 🏗️ Architecture
+```dockerfile
+# Build argument for configurable model
+ARG DEFAULT_MODEL=gpt-5.2-codex
 
-Shannon emulates a human penetration tester's methodology using a sophisticated multi-agent architecture. It combines white-box source code analysis with black-box dynamic exploitation across four distinct phases:
+# Install dependencies
+RUN npm ci && \
+    cd mcp-server && npm ci && cd ..
 
-```
-                    ┌──────────────────────┐
-                    │    Reconnaissance    │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────┴───────────┐
-                    │          │           │
-                    ▼          ▼           ▼
-        ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-        │ Vuln Analysis   │ │ Vuln Analysis   │ │      ...        │
-        │  (Injection)    │ │     (XSS)       │ │                 │
-        └─────────┬───────┘ └─────────┬───────┘ └─────────┬───────┘
-                  │                   │                   │
-                  ▼                   ▼                   ▼
-        ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-        │  Exploitation   │ │  Exploitation   │ │      ...        │
-        │  (Injection)    │ │     (XSS)       │ │                 │
-        └─────────┬───────┘ └─────────┬───────┘ └─────────┬───────┘
-                  │                   │                   │
-                  └─────────┬─────────┴───────────────────┘
-                            │
-                            ▼
-                    ┌──────────────────────┐
-                    │      Reporting       │
-                    └──────────────────────┘
+# Patch SDK to use configurable model
+RUN echo "Patching SDK to use model: ${DEFAULT_MODEL}" && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-sonnet-4-5-20250929/${DEFAULT_MODEL}/g" {} \; && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-sonnet-4-20250514/${DEFAULT_MODEL}/g" {} \; && \
+    find node_modules/@anthropic-ai -type f -name "*.js" \
+        -exec sed -i "s/claude-opus-4-20250514/${DEFAULT_MODEL}/g" {} \; && \
+    echo "SDK patched successfully"
 ```
 
-### Architectural Overview
+### What Gets Patched
 
-Shannon is engineered to emulate the methodology of a human penetration tester. It leverages Anthropic's Claude Agent SDK as its core reasoning engine, but its true strength lies in the sophisticated multi-agent architecture built around it. This architecture combines the deep context of **white-box source code analysis** with the real-world validation of **black-box dynamic exploitation**, managed by an orchestrator through four distinct phases to ensure a focus on minimal false positives and intelligent context management.
+The SDK contains several hardcoded model references:
+
+| Original Model | Context |
+|---------------|---------|
+| `claude-sonnet-4-5-20250929` | Default model for agents |
+| `claude-sonnet-4-20250514` | Fallback model |
+| `claude-opus-4-20250514` | High-capability model |
+
+All are replaced with your `DEFAULT_MODEL` value.
+
+### Verifying the Patch
+
+After building, you can verify the patch worked:
+
+```bash
+docker run --rm shannon-cli-proxy-worker \
+  grep -r "claude-sonnet-4-5" /app/node_modules/@anthropic-ai/ | wc -l
+# Should output: 0
+```
 
 ---
 
-#### **Phase 1: Reconnaissance**
+## Troubleshooting
 
-The first phase builds a comprehensive map of the application's attack surface. Shannon analyzes the source code and integrates with tools like Nmap and Subfinder to understand the tech stack and infrastructure. Simultaneously, it performs live application exploration via browser automation to correlate code-level insights with real-world behavior, producing a detailed map of all entry points, API endpoints, and authentication mechanisms for the next phase.
+### "Model not found" or "Unsupported model"
 
-#### **Phase 2: Vulnerability Analysis**
+**Cause:** Your proxy doesn't recognize the model ID being sent.
 
-To maximize efficiency, this phase operates in parallel. Using the reconnaissance data, specialized agents for each OWASP category hunt for potential flaws in parallel. For vulnerabilities like Injection and SSRF, agents perform a structured data flow analysis, tracing user input to dangerous sinks. This phase produces a key deliverable: a list of **hypothesized exploitable paths** that are passed on for validation.
+**Solution:** 
+1. Check what model Shannon is requesting (look at proxy logs)
+2. Ensure `CLAUDE_MODEL` in `.env` matches a model your proxy supports
+3. Rebuild the Docker image: `docker compose build --no-cache worker`
 
-#### **Phase 3: Exploitation**
+### "Connection refused" to proxy
 
-Continuing the parallel workflow to maintain speed, this phase is dedicated entirely to turning hypotheses into proof. Dedicated exploit agents receive the hypothesized paths and attempt to execute real-world attacks using browser automation, command-line tools, and custom scripts. This phase enforces a strict **"No Exploit, No Report"** policy: if a hypothesis cannot be successfully exploited to demonstrate impact, it is discarded as a false positive.
+**Cause:** Docker can't reach your local proxy.
 
-#### **Phase 4: Reporting**
+**Solution:**
+1. Ensure your proxy is running and listening on the expected port
+2. Use `host.docker.internal` instead of `localhost` in `ANTHROPIC_BASE_URL`
+3. Check that `extra_hosts` is set in `docker-compose.yml`:
+   ```yaml
+   extra_hosts:
+     - "host.docker.internal:host-gateway"
+   ```
 
-The final phase compiles all validated findings into a professional, actionable report. An agent consolidates the reconnaissance data and the successful exploit evidence, cleaning up any noise or hallucinated artifacts. Only verified vulnerabilities are included, complete with **reproducible, copy-and-paste Proof-of-Concepts**, delivering a final pentest-grade report focused exclusively on proven risks.
+### Task sub-agents still use wrong model
 
+**Cause:** Image wasn't rebuilt after changing `CLAUDE_MODEL`.
 
-## 📋 Coverage and Roadmap
+**Solution:**
+```bash
+docker compose build --no-cache worker
+docker compose up -d
+```
 
-For detailed information about Shannon's security testing coverage and development roadmap, see our [Coverage and Roadmap](./COVERAGE.md) documentation.
+The model is patched at **build time**, not runtime. Changing `.env` requires a rebuild.
 
-## ⚠️ Disclaimers
+### Temporal workflow stuck
 
-### Important Usage Guidelines & Disclaimers
+**Cause:** Various—usually API errors in worker.
 
-Please review the following guidelines carefully before using Shannon (Lite). As a user, you are responsible for your actions and assume all liability.
+**Solution:**
+```bash
+# Check worker logs
+docker compose logs -f worker
 
-#### **1. Potential for Mutative Effects & Environment Selection**
+# Reset Temporal (nuclear option)
+docker compose down -v
+docker compose up -d
+```
 
-This is not a passive scanner. The exploitation agents are designed to **actively execute attacks** to confirm vulnerabilities. This process can have mutative effects on the target application and its data.
+---
 
-> [!WARNING]
-> **⚠️ DO NOT run Shannon on production environments.**
->
-> - It is intended exclusively for use on sandboxed, staging, or local development environments where data integrity is not a concern.
-> - Potential mutative effects include, but are not limited to: creating new users, modifying or deleting data, compromising test accounts, and triggering unintended side effects from injection attacks.
+## Architecture Deep Dive
 
-#### **2. Legal & Ethical Use**
+### Request Flow
 
-Shannon is designed for legitimate security auditing purposes only.
+```
+1. User runs ./shannon start URL=... REPO=...
 
-> [!CAUTION]
-> **You must have explicit, written authorization** from the owner of the target system before running Shannon.
->
-> Unauthorized scanning and exploitation of systems you do not own is illegal and can be prosecuted under laws such as the Computer Fraud and Abuse Act (CFAA). Keygraph is not responsible for any misuse of Shannon.
+2. CLI creates Temporal workflow
+   └─▶ Temporal Server (port 7233)
 
-#### **3. LLM & Automation Caveats**
+3. Worker picks up workflow
+   └─▶ Creates Claude agent with ANTHROPIC_BASE_URL
+   └─▶ Agent uses patched SDK (model = gpt-5.2-codex)
 
-- **Verification is Required**: While significant engineering has gone into our "proof-by-exploitation" methodology to eliminate false positives, the underlying LLMs can still generate hallucinated or weakly-supported content in the final report. **Human oversight is essential** to validate the legitimacy and severity of all reported findings.
-- **Comprehensiveness**: The analysis in Shannon Lite may not be exhaustive due to the inherent limitations of LLM context windows. For a more comprehensive, graph-based analysis of your entire codebase, **Shannon Pro** leverages its advanced data flow analysis engine to ensure deeper and more thorough coverage.
+4. Agent needs sub-task
+   └─▶ Calls Task tool
+   └─▶ SDK spawns sub-agent
+   └─▶ Sub-agent ALSO uses patched model (critical fix!)
 
-#### **4. Scope of Analysis**
+5. All requests route through proxy
+   └─▶ http://host.docker.internal:8317
+   └─▶ Proxy routes to actual provider
 
-- **Targeted Vulnerabilities**: The current version of Shannon Lite specifically targets the following classes of *exploitable* vulnerabilities:
-  - Broken Authentication & Authorization
-  - Injection
-  - Cross-Site Scripting (XSS)
-  - Server-Side Request Forgery (SSRF)
-- **What Shannon Lite Does Not Cover**: This list is not exhaustive of all potential security risks. Shannon Lite's "proof-by-exploitation" model means it will not report on issues it cannot actively exploit, such as vulnerable third-party libraries or insecure configurations. These types of deep static-analysis findings are a core focus of the advanced analysis engine in **Shannon Pro**.
+6. Results flow back through Temporal
+   └─▶ Deliverables written to output directory
+```
 
-#### **5. Cost & Performance**
+### Why Temporal?
 
-- **Time**: As of the current version, a full test run typically takes **1 to 1.5 hours** to complete.
-- **Cost**: Running the full test using Anthropic's Claude 4.5 Sonnet model may incur costs of approximately **$50 USD**. Please note that costs are subject to change based on model pricing and the complexity of the target application.
+Shannon uses [Temporal](https://temporal.io/) for workflow orchestration. This provides:
 
-#### **6. Windows Antivirus False Positives**
+- **Durability**: Workflows survive worker restarts
+- **Visibility**: Web UI shows workflow state (port 8233)
+- **Retries**: Failed activities automatically retry
+- **Timeouts**: Long-running tasks don't hang forever
 
-Windows Defender may flag files in `xben-benchmark-results/` or `deliverables/` as malware. These are false positives caused by exploit code in the reports. Add an exclusion for the Shannon directory in Windows Defender, or use Docker/WSL2.
+---
 
+## Limitations
 
-## 📜 License
+### Model Capability Requirements
 
-Shannon Lite is released under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+Shannon expects a capable model that supports:
 
-Shannon is open source (AGPL v3). This license allows you to:
-- Use it freely for all internal security testing.
-- Modify the code privately for internal use without sharing your changes.
+- **Tool use / Function calling**: Essential for all operations
+- **Large context windows**: 100k+ tokens recommended
+- **Strong instruction following**: Complex multi-step prompts
 
-The AGPL's sharing requirements primarily apply to organizations offering Shannon as a public or managed service (such as a SaaS platform). In those specific cases, any modifications made to the core software must be open-sourced.
+Models that struggle with these (most small local models) will produce poor results.
 
+### Single Model for All Tasks
 
-## 👥 Community & Support
+The current patching approach uses **one model for everything**. The original Shannon might have used different models for different tasks (fast model for classification, smart model for analysis). After patching, all tasks use your configured model.
 
-### Community Resources
+This is usually fine—modern frontier models handle all tasks well—but worth noting.
 
-**Contributing:** At this time, we’re not accepting external code contributions (PRs).  
-Issues are welcome for bug reports and feature requests.
+### Build-Time Configuration
 
-- 🐛 **Report bugs** via [GitHub Issues](https://github.com/KeygraphHQ/shannon/issues)
-- 💡 **Suggest features** in [Discussions](https://github.com/KeygraphHQ/shannon/discussions)
-- 💬 **Join our [Discord](https://discord.gg/KAqzSHHpRt)** for real-time community support
+The model is patched at Docker build time. To change models, you must rebuild the image. This is intentional (immutable infrastructure) but can be inconvenient during experimentation.
 
-### Stay Connected
+---
 
-- 🐦 **Twitter**: [@KeygraphHQ](https://twitter.com/KeygraphHQ)
-- 💼 **LinkedIn**: [Keygraph](https://linkedin.com/company/keygraph)
-- 🌐 **Website**: [keygraph.io](https://keygraph.io)
+## Contributing
 
+We welcome contributions, particularly from those who:
 
+- Have been burned by hardcoded API endpoints
+- Believe in infrastructure independence
+- Think vendor lock-in is an anti-pattern
+- Want to run AI tools on their own terms
 
-## 💬 Get in Touch
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### Interested in Shannon Pro?
+---
 
-Shannon Pro is designed for organizations serious about application security. It offers enterprise-grade features, dedicated support, and seamless CI/CD integration, all powered by our most advanced LLM-based analysis engine. Find and fix complex vulnerabilities deep in your codebase before they ever reach production.
+## FAQ
 
-For a detailed breakdown of features, technical differences, and enterprise use cases, see our [complete comparison guide](./SHANNON-PRO.md).
+**Q: Why not just use environment variables in the SDK?**
 
-<p align="center">
-  <a href="https://docs.google.com/forms/d/e/1FAIpQLSf-cPZcWjlfBJ3TCT8AaWpf8ztsw3FaHzJE4urr55KdlQs6cQ/viewform?usp=header" target="_blank">
-    <img src="https://img.shields.io/badge/📋%20Express%20Interest%20in%20Shannon%20Pro-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Express Interest">
-  </a>
-</p>
+A: We would love to. The SDK doesn't expose this configuration. The model string is buried in minified JavaScript, likely generated from TypeScript that also doesn't expose configuration. We're working with what we have.
 
-**Or contact us directly:**
+**Q: Is patching the SDK with `sed` safe?**
 
-📧 **Email**: [shannon@keygraph.io](mailto:shannon@keygraph.io)
+A: It's not *elegant*, but it's deterministic and auditable. The `sed` command replaces exact strings. If Anthropic changes the model format in future SDK versions, the patch might need updating—but it won't silently break. It will either work or obviously fail.
+
+**Q: Will this work with future SDK versions?**
+
+A: Probably, with minor adjustments. Model naming conventions are relatively stable. If Anthropic releases `claude-sonnet-5-0-20260101`, you'd add another `sed` line to the Dockerfile.
+
+**Q: Can I use this with the official Anthropic API?**
+
+A: Yes! Set `ANTHROPIC_BASE_URL=https://api.anthropic.com` and `CLAUDE_MODEL=claude-sonnet-4-5-20250929`. You'll get the original behavior but with the flexibility to switch providers later.
+
+**Q: Why fork instead of PR upstream?**
+
+A: This is a philosophical divergence, not a bug fix. The upstream project may have business reasons to prefer direct Anthropic integration. We respect that while providing an alternative for those who need flexibility.
+
+---
+
+## Credits
+
+- **Shannon**: Original project by [Keygraph, Inc.](https://keygraph.io/) — the foundation we built upon
+- **Claude CLI Proxy**: For making local LLM routing painless
+- **Every engineer** who's ever had to work around a hardcoded string in a dependency
+
+---
+
+## Fork Acknowledgment
+
+Shannon CLI Proxy is a fork of [**Shannon**](https://github.com/KeygraphHQ/shannon) by [Keygraph, Inc.](https://keygraph.io/)
+
+We gratefully acknowledge the original authors for building an excellent AI-powered penetration testing framework. Our modifications are focused solely on provider flexibility—the core reconnaissance and analysis capabilities remain their excellent work.
+
+If you find value in the CLI proxy additions, consider also starring the [upstream repository](https://github.com/KeygraphHQ/shannon).
+
+---
+
+## License
+
+AGPL-3.0. Because security tools should be auditable, and infrastructure freedom should be shareable.
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ by the Keygraph team</b><br>
-  <i>Making application security accessible to everyone</i>
+  <i>"In a world of vendor lock-in, the proxy is liberation."</i>
 </p>
