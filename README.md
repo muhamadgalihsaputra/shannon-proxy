@@ -217,17 +217,30 @@ docker compose up -d
 
 ## Tested Model Configurations
 
-We've tested Shannon with [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) using the following model combinations:
+We've tested Shannon with [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). **Note:** Available models depend on your CLIProxyAPI credentials and provider configuration. Check your available models with:
 
-| Proxy | Model ID | Status | Notes |
-|-------|----------|--------|-------|
-| CLIProxyAPI | `gemini-3-flash-preview` | ✅ Works | Recommended, fast |
-| CLIProxyAPI | `gemini-3-pro-preview` | ✅ Works | Best for complex analysis |
-| CLIProxyAPI | `gpt-5.2-codex` | ✅ Works | High capability, may hit rate limits |
-| CLIProxyAPI | `gpt-5.1-codex` | ✅ Works | Good balance of speed/quality |
-| CLIProxyAPI | `gemini-2.5-pro` | ✅ Works | Solid performance |
-| CLIProxyAPI | `gemini-2.5-flash` | ✅ Works | Fast, cost-effective |
-| CLIProxyAPI | `qwen3-coder-flash` | ✅ Works | Good for code analysis |
+```bash
+curl http://127.0.0.1:8317/v1/models -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Example Models (may vary by account)
+
+| Model ID | Provider | Status | Notes |
+|----------|----------|--------|-------|
+| `gemini-3-flash-preview` | Antigravity | ✅ Works | Recommended, fast |
+| `gemini-3-pro-preview` | Antigravity | ✅ Works | Best for complex analysis |
+| `gemini-2.5-pro` | Google | ✅ Works | Solid performance |
+| `gemini-2.5-flash` | Antigravity | ✅ Works | Fast, cost-effective |
+| `gpt-5.2-codex` | OpenAI | ✅ Works | High capability, may hit rate limits |
+| `gpt-5.1-codex` | OpenAI | ✅ Works | Good balance |
+| `gpt-5-codex` | OpenAI | ✅ Works | Stable |
+| `qwen3-coder-flash` | Qwen | ✅ Works | Good for code analysis |
+| `gemini-claude-sonnet-4-5` | Antigravity | ✅ Works | Claude-style responses via Gemini |
+
+### Other Proxies
+
+| Proxy | Example Model | Status | Notes |
+|-------|---------------|--------|-------|
 | LiteLLM | `anthropic/claude-3-5-sonnet` | ✅ Works | Native Anthropic routing |
 | OpenRouter | `anthropic/claude-3.5-sonnet` | ✅ Works | Multi-provider fallback |
 | Ollama | `llama3.1:70b` | ⚠️ Partial | Tool use may be limited |
