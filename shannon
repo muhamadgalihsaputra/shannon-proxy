@@ -28,6 +28,7 @@ Usage:
   ./shannon start URL=<url> REPO=<path>   Start a pentest workflow
   ./shannon logs ID=<workflow-id>         Tail logs for a specific workflow
   ./shannon query ID=<workflow-id>        Query workflow progress
+  ./shannon cleanup REPO=<path>           Clean up generated artifacts from target repo
   ./shannon stop                          Stop all containers
   ./shannon help                          Show this help message
 
@@ -37,6 +38,10 @@ Options for 'start':
   PIPELINE_TESTING=true  Use minimal prompts for fast testing
   KEEP_DELIVERABLES=true Skip archiving existing deliverables (not recommended)
 
+Options for 'cleanup':
+  DRY_RUN=true           Show what would be deleted without deleting
+  KEEP_DELIVERABLES=true Keep deliverables folder (only clean scripts)
+
 Options for 'stop':
   CLEAN=true             Remove all data including volumes
 
@@ -44,6 +49,8 @@ Examples:
   ./shannon start URL=https://example.com REPO=/path/to/repo
   ./shannon start URL=https://example.com REPO=/path/to/repo CONFIG=./config.yaml
   ./shannon start URL=https://example.com REPO=/path/to/repo OUTPUT=./my-reports
+  ./shannon cleanup REPO=/path/to/repo
+  ./shannon cleanup REPO=/path/to/repo DRY_RUN=true
   ./shannon logs ID=example.com_shannon-1234567890
   ./shannon query ID=shannon-1234567890
   ./shannon stop CLEAN=true
@@ -62,6 +69,7 @@ parse_args() {
       OUTPUT=*) OUTPUT="${arg#OUTPUT=}" ;;
       ID=*) ID="${arg#ID=}" ;;
       CLEAN=*) CLEAN="${arg#CLEAN=}" ;;
+      DRY_RUN=*) DRY_RUN="${arg#DRY_RUN=}" ;;
       PIPELINE_TESTING=*) PIPELINE_TESTING="${arg#PIPELINE_TESTING=}" ;;
       REBUILD=*) REBUILD="${arg#REBUILD=}" ;;
       KEEP_DELIVERABLES=*) KEEP_DELIVERABLES="${arg#KEEP_DELIVERABLES=}" ;;
@@ -100,6 +108,150 @@ archive_existing_deliverables() {
   mkdir -p "$deliverables_dir"
   
   echo "Fresh deliverables directory created for new session"
+}
+
+# Clean up Shannon-generated artifacts from target repo
+# This removes Python exploit scripts, JSON results, and optionally deliverables
+cleanup_artifacts() {
+  local repo_path="$1"
+  local dry_run="$2"
+  local keep_deliverables="$3"
+  
+  if [ ! -d "$repo_path" ]; then
+    echo "ERROR: Repository path does not exist: $repo_path"
+    exit 1
+  fi
+  
+  echo ""
+  echo "🧹 Shannon Artifact Cleanup"
+  echo "   Repository: $repo_path"
+  echo ""
+  
+  # Define patterns for Shannon-generated files
+  # These are created by exploit agents during pentesting
+  local py_patterns=(
+    "*_exploit*.py"
+    "*_test*.py"
+    "*_vuln*.py"
+    "*ssrf*.py"
+    "*auth*.py"
+    "*authz*.py"
+    "*xss*.py"
+    "*injection*.py"
+    "exploit_*.py"
+    "check_*.py"
+    "list_*.py"
+    "inspect_*.py"
+    "debug_*.py"
+    "blind_*.py"
+  )
+  
+  local json_patterns=(
+    "ssrf_*.json"
+    "*_results.json"
+    "*_exhaustive.json"
+  )
+  
+  local md_patterns=(
+    "SECURITY_REMEDIATION_PLAN.md"
+  )
+  
+  local dir_patterns=(
+    "deliverables"
+    "deliverables-archive-*"
+    "deliverables-assessment-*"
+    "outputs"
+  )
+  
+  local total_count=0
+  local files_to_delete=()
+  local dirs_to_delete=()
+  
+  # Find Python scripts
+  echo "📝 Python exploit scripts:"
+  for pattern in "${py_patterns[@]}"; do
+    while IFS= read -r -d '' file; do
+      if [ -n "$file" ]; then
+        files_to_delete+=("$file")
+        echo "   - ${file#$repo_path/}"
+        ((total_count++))
+      fi
+    done < <(find "$repo_path" -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null)
+  done
+  
+  # Find JSON results
+  echo ""
+  echo "📊 JSON result files:"
+  for pattern in "${json_patterns[@]}"; do
+    while IFS= read -r -d '' file; do
+      if [ -n "$file" ]; then
+        files_to_delete+=("$file")
+        echo "   - ${file#$repo_path/}"
+        ((total_count++))
+      fi
+    done < <(find "$repo_path" -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null)
+  done
+  
+  # Find markdown files
+  echo ""
+  echo "📄 Security plan files:"
+  for pattern in "${md_patterns[@]}"; do
+    while IFS= read -r -d '' file; do
+      if [ -n "$file" ]; then
+        files_to_delete+=("$file")
+        echo "   - ${file#$repo_path/}"
+        ((total_count++))
+      fi
+    done < <(find "$repo_path" -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null)
+  done
+  
+  # Find directories (unless KEEP_DELIVERABLES)
+  if [ "$keep_deliverables" != "true" ]; then
+    echo ""
+    echo "📁 Deliverable directories:"
+    for pattern in "${dir_patterns[@]}"; do
+      while IFS= read -r -d '' dir; do
+        if [ -n "$dir" ]; then
+          dirs_to_delete+=("$dir")
+          local item_count=$(find "$dir" -type f 2>/dev/null | wc -l)
+          echo "   - ${dir#$repo_path/} ($item_count files)"
+          ((total_count++))
+        fi
+      done < <(find "$repo_path" -maxdepth 1 -name "$pattern" -type d -print0 2>/dev/null)
+    done
+  fi
+  
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Total: $total_count items to clean"
+  echo ""
+  
+  if [ "$total_count" -eq 0 ]; then
+    echo "✅ No Shannon artifacts found. Repository is clean!"
+    return 0
+  fi
+  
+  if [ "$dry_run" = "true" ]; then
+    echo "🔍 DRY RUN: No files were deleted."
+    echo "   Run without DRY_RUN=true to actually delete."
+    return 0
+  fi
+  
+  # Actually delete
+  echo "🗑️  Deleting..."
+  
+  for file in "${files_to_delete[@]}"; do
+    rm -f "$file" && echo "   ✓ Deleted: ${file#$repo_path/}"
+  done
+  
+  for dir in "${dirs_to_delete[@]}"; do
+    rm -rf "$dir" && echo "   ✓ Deleted: ${dir#$repo_path/}/"
+  done
+  
+  echo ""
+  echo "✅ Cleanup complete! Removed $total_count items."
+  echo ""
+  echo "💡 Tip: Run 'git status' to verify, then commit if needed."
 }
 
 # Check if Temporal is running and healthy
@@ -271,6 +423,22 @@ cmd_stop() {
   fi
 }
 
+cmd_cleanup() {
+  parse_args "$@"
+  
+  if [ -z "$REPO" ]; then
+    echo "ERROR: REPO is required"
+    echo "Usage: ./shannon cleanup REPO=<path>"
+    echo ""
+    echo "Options:"
+    echo "  DRY_RUN=true           Show what would be deleted without deleting"
+    echo "  KEEP_DELIVERABLES=true Keep deliverables folder (only clean scripts)"
+    exit 1
+  fi
+  
+  cleanup_artifacts "$REPO" "$DRY_RUN" "$KEEP_DELIVERABLES"
+}
+
 # Main command dispatch
 case "${1:-help}" in
   start)
@@ -284,6 +452,10 @@ case "${1:-help}" in
   query)
     shift
     cmd_query "$@"
+    ;;
+  cleanup)
+    shift
+    cmd_cleanup "$@"
     ;;
   stop)
     shift
