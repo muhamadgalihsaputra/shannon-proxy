@@ -33,6 +33,12 @@ services:
       - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=${CLAUDE_CODE_MAX_OUTPUT_TOKENS:-64000}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      # Sub-agent model overrides (prevent SDK from using default haiku/sonnet)
+      - CLAUDE_CODE_SUBAGENT_MODEL=${CLAUDE_CODE_SUBAGENT_MODEL:-${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}}
+      - ANTHROPIC_SMALL_FAST_MODEL=${ANTHROPIC_SMALL_FAST_MODEL:-${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}}
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}}
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}}
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}}
       # Git identity for checkpoint commits (required when running as host user)
       - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-Shannon Bot}
       - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-shannon@pentest.local}
