@@ -35,6 +35,7 @@ Options for 'start':
   CONFIG=<path>          Configuration file (YAML)
   OUTPUT=<path>          Output directory for reports (default: ./audit-logs/)
   PIPELINE_TESTING=true  Use minimal prompts for fast testing
+  KEEP_DELIVERABLES=true Skip archiving existing deliverables (not recommended)
 
 Options for 'stop':
   CLEAN=true             Remove all data including volumes
@@ -63,8 +64,42 @@ parse_args() {
       CLEAN=*) CLEAN="${arg#CLEAN=}" ;;
       PIPELINE_TESTING=*) PIPELINE_TESTING="${arg#PIPELINE_TESTING=}" ;;
       REBUILD=*) REBUILD="${arg#REBUILD=}" ;;
+      KEEP_DELIVERABLES=*) KEEP_DELIVERABLES="${arg#KEEP_DELIVERABLES=}" ;;
     esac
   done
+}
+
+# Archive existing deliverables from previous sessions
+# This prevents agent confusion when re-running assessments on the same repo
+archive_existing_deliverables() {
+  local repo_path="$1"
+  local deliverables_dir="${repo_path}/deliverables"
+  
+  # Skip if no deliverables directory exists
+  if [ ! -d "$deliverables_dir" ]; then
+    return 0
+  fi
+  
+  # Skip if directory is empty (only has hidden files or nothing)
+  if [ -z "$(ls -A "$deliverables_dir" 2>/dev/null)" ]; then
+    return 0
+  fi
+  
+  # Skip if user explicitly wants to keep deliverables
+  if [ "$KEEP_DELIVERABLES" = "true" ]; then
+    echo "KEEP_DELIVERABLES=true: Keeping existing deliverables (agents may read stale data)"
+    return 0
+  fi
+  
+  # Archive to timestamped directory
+  local timestamp=$(date +%Y%m%d-%H%M%S)
+  local archive_dir="${repo_path}/deliverables-archive-${timestamp}"
+  
+  echo "Archiving existing deliverables to: ${archive_dir}"
+  mv "$deliverables_dir" "$archive_dir"
+  mkdir -p "$deliverables_dir"
+  
+  echo "Fresh deliverables directory created for new session"
 }
 
 # Check if Temporal is running and healthy
@@ -133,11 +168,15 @@ cmd_start() {
   case "$REPO" in
     /benchmarks/*|/target-repo|/target-repo/*)
       CONTAINER_REPO="$REPO"
+      # For container paths, we can't archive from host - skip
       ;;
     *)
       # Host path - export for docker-compose mount
       export TARGET_REPO="$REPO"
       CONTAINER_REPO="/target-repo"
+      
+      # Archive existing deliverables to prevent agent confusion
+      archive_existing_deliverables "$REPO"
       ;;
   esac
 
