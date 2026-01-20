@@ -182,6 +182,56 @@ docker compose up -d
 ./shannon start URL=https://target.example.com REPO=/path/to/target/repo
 ```
 
+### 4. Clean Up After Assessment
+
+Shannon agents generate Python exploit scripts, JSON results, and deliverable files in your target repo during assessment. Clean them up when done:
+
+```bash
+# Preview what will be deleted (dry run)
+./shannon cleanup REPO=/path/to/target/repo DRY_RUN=true
+
+# Actually delete all artifacts
+./shannon cleanup REPO=/path/to/target/repo
+
+# Keep deliverables folder, only clean scripts
+./shannon cleanup REPO=/path/to/target/repo KEEP_DELIVERABLES=true
+```
+
+**What gets cleaned:**
+- Python exploit scripts (`*_exploit.py`, `*_test.py`, `*_vuln.py`, etc.)
+- JSON result files (`ssrf_*.json`, `*_results.json`)
+- Security plan markdown files
+- Deliverables directories (optional)
+
+---
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `./shannon start URL=<url> REPO=<path>` | Start a pentest workflow |
+| `./shannon logs ID=<workflow-id>` | Tail logs for a specific workflow |
+| `./shannon query ID=<workflow-id>` | Query workflow progress |
+| `./shannon cleanup REPO=<path>` | Clean up generated artifacts from target repo |
+| `./shannon stop` | Stop all containers |
+| `./shannon help` | Show help message |
+
+### Start Options
+
+| Option | Description |
+|--------|-------------|
+| `CONFIG=<path>` | Configuration file (YAML) |
+| `OUTPUT=<path>` | Output directory for reports (default: `./audit-logs/`) |
+| `PIPELINE_TESTING=true` | Use minimal prompts for fast testing |
+| `KEEP_DELIVERABLES=true` | Skip archiving existing deliverables |
+
+### Cleanup Options
+
+| Option | Description |
+|--------|-------------|
+| `DRY_RUN=true` | Preview what would be deleted without deleting |
+| `KEEP_DELIVERABLES=true` | Keep deliverables folder, only clean scripts |
+
 ---
 
 ## Configuration Reference
